@@ -1,0 +1,67 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  color-scheme: light;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --background: #1b8883;
+  --foreground: #1d1b2e;
+}
+
+body {
+  font-family:
+    'Galmuri11', 'Galmuri9', 'DotGothic16', ui-monospace, 'Malgun Gothic', system-ui,
+    sans-serif;
+  font-size: 15px;
+  background-color: var(--background);
+  /* 데스크톱 배경: 틸 + 도트 패턴 */
+  background-image: radial-gradient(rgba(255, 255, 255, 0.16) 1px, transparent 1.2px);
+  background-size: 16px 16px;
+  color: var(--foreground);
+  min-height: 100vh;
+}
+
+/* CRT 스캔라인 오버레이 (아주 약하게) */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.025) 0,
+    rgba(0, 0, 0, 0.025) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: #ffc93c;
+  color: #1d1b2e;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
