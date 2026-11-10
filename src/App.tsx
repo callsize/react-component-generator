@@ -3,6 +3,7 @@ import { PromptInput } from './components/PromptInput';
 import { ComponentCard } from './components/ComponentCard';
 import { useComponentGenerator } from './hooks/useComponentGenerator';
 import { usePersistentState } from './hooks/usePersistentState';
+import { useElapsedSeconds } from './hooks/useElapsedSeconds';
 import { parseApiKeys, parseProvider } from './utils/storage';
 import type { Provider } from './types';
 import './App.css';
@@ -28,6 +29,7 @@ function App() {
   });
   const { components, history, isLoading, error, generate, removeComponent, clearAll } =
     useComponentGenerator();
+  const elapsedSeconds = useElapsedSeconds(isLoading);
 
   useEffect(() => {
     fetch('/api/config')
@@ -163,7 +165,7 @@ function App() {
         {isLoading && (
           <div className="loading-card window" data-title="LOADING...">
             <div className="loading-pulse" />
-            <p>컴포넌트를 생성하고 있습니다...</p>
+            <p>컴포넌트를 생성하고 있습니다... {elapsedSeconds}초</p>
           </div>
         )}
 
