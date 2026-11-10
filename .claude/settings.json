@@ -1,5 +1,115 @@
 {
   "worktree": {
     "baseRef": "head"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Edit(src/**)",
+            "command": "bun .claude/hooks/remind-tdd.ts"
+          },
+          {
+            "type": "command",
+            "if": "Write(src/**)",
+            "command": "bun .claude/hooks/remind-tdd.ts"
+          },
+          {
+            "type": "command",
+            "if": "Edit(server/**)",
+            "command": "bun .claude/hooks/remind-tdd.ts"
+          },
+          {
+            "type": "command",
+            "if": "Write(server/**)",
+            "command": "bun .claude/hooks/remind-tdd.ts"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(*git commit*)",
+            "command": "bun .claude/hooks/require-tests-before-commit.ts",
+            "timeout": 300
+          },
+          {
+            "type": "command",
+            "if": "PowerShell(*git commit*)",
+            "command": "bun .claude/hooks/require-tests-before-commit.ts",
+            "timeout": 300
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/*.env)",
+      "Read(**/*credential*)",
+      "Read(**/*secret*)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/*.p12)",
+      "Read(**/*.pfx)",
+      "Read(**/id_rsa*)",
+      "Read(**/id_ed25519*)",
+      "Read(**/.npmrc)",
+      "Read(**/.netrc)",
+      "Read(**/.aws/**)",
+      "Read(**/.ssh/**)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)",
+      "Edit(**/*.env)",
+      "Edit(**/*credential*)",
+      "Edit(**/*secret*)",
+      "Edit(**/*.pem)",
+      "Edit(**/*.key)",
+      "Edit(**/*.p12)",
+      "Edit(**/*.pfx)",
+      "Edit(**/id_rsa*)",
+      "Edit(**/id_ed25519*)",
+      "Edit(**/.npmrc)",
+      "Edit(**/.netrc)",
+      "Edit(**/.aws/**)",
+      "Edit(**/.ssh/**)",
+      "Write(**/.env)",
+      "Write(**/.env.*)",
+      "Write(**/*.env)",
+      "Write(**/*credential*)",
+      "Write(**/*secret*)",
+      "Write(**/*.pem)",
+      "Write(**/*.key)",
+      "Bash(*.env*)",
+      "Bash(*credential*)",
+      "Bash(*secret*)",
+      "Bash(*.pem*)",
+      "Bash(*id_rsa*)",
+      "Bash(*.ssh/*)",
+      "Bash(*.aws/*)",
+      "Bash(printenv*)",
+      "Bash(env)",
+      "Bash(env *)",
+      "Bash(set)",
+      "Bash(Get-ChildItem env:*)",
+      "Bash(gci env:*)",
+      "PowerShell(*.env*)",
+      "PowerShell(*credential*)",
+      "PowerShell(*secret*)",
+      "PowerShell(*.pem*)",
+      "PowerShell(*id_rsa*)",
+      "PowerShell(*.ssh*)",
+      "PowerShell(*.aws*)",
+      "PowerShell(*$env:*)",
+      "PowerShell(*Get-ChildItem env:*)",
+      "PowerShell(*gci env:*)"
+    ]
   }
 }

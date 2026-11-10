@@ -566,17 +566,25 @@ button:focus-visible {
   height: 60px;
 }
 
-.loading-card {
+/* 스트리밍 중인 카드: 코드가 길어져도 카드 높이가 고정되고 안에서 스크롤된다 */
+.streaming-card .code-block {
+  max-height: 480px;
+  overflow-y: auto;
+}
+
+.streaming-wait {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: calc(var(--bar-h) + 18px) 20px 20px;
-  margin-bottom: 28px;
+  min-height: 320px;
+  padding: 22px;
+  background: #14131f;
 }
 
-.loading-card p {
-  color: var(--ink);
-  font-size: 0.92rem;
+.streaming-wait p {
+  color: #c9f7d4;
+  font-family: var(--mono);
+  font-size: 0.86rem;
 }
 
 /* 8-bit 로딩 바 */

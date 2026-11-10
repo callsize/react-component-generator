@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { PromptInput } from './components/PromptInput';
 import { ComponentCard } from './components/ComponentCard';
+import { StreamingCard } from './components/StreamingCard';
 import { useComponentGenerator } from './hooks/useComponentGenerator';
 import { usePersistentState } from './hooks/usePersistentState';
 import { useElapsedSeconds } from './hooks/useElapsedSeconds';
@@ -27,7 +28,7 @@ function App() {
     anthropic: false,
     google: false,
   });
-  const { components, history, isLoading, error, generate, removeComponent, clearAll } =
+  const { components, history, isLoading, error, streamingCode, generate, removeComponent, clearAll } =
     useComponentGenerator();
   const elapsedSeconds = useElapsedSeconds(isLoading);
 
@@ -131,14 +132,16 @@ function App() {
       )}
 
       <section className="results-section">
-        {components.length > 0 && (
+        {(components.length > 0 || isLoading) && (
           <div className="results-header">
             <div>
               <h2>생성된 컴포넌트</h2>
             </div>
-            <button className="btn-clear" onClick={clearAll}>
-              전체 삭제
-            </button>
+            {components.length > 0 && (
+              <button className="btn-clear" onClick={clearAll}>
+                전체 삭제
+              </button>
+            )}
           </div>
         )}
 
@@ -162,14 +165,8 @@ function App() {
           </div>
         )}
 
-        {isLoading && (
-          <div className="loading-card window" data-title="LOADING...">
-            <div className="loading-pulse" />
-            <p>컴포넌트를 생성하고 있습니다... {elapsedSeconds}초</p>
-          </div>
-        )}
-
         <div className="results-grid">
+          {isLoading && <StreamingCard code={streamingCode} elapsedSeconds={elapsedSeconds} />}
           {components.map((component) => (
             <ComponentCard
               key={component.id}
