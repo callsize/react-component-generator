@@ -55,6 +55,54 @@ describe('createGenerationStream', () => {
     ]);
   });
 
+  it('스트림 도중 503 에러는 과부하 안내 문구의 error 이벤트로 바꿔 내보낸다', async () => {
+    async function* failing(): AsyncGenerator<string> {
+      yield 'const A';
+      throw new Error('Gemini API error: 503');
+    }
+
+    const events = await readEvents(createGenerationStream(failing(), (text) => text));
+
+    expect(events.at(-1)).toEqual({
+      type: 'error',
+      error: 'API 서버가 일시적으로 과부하 상태입니다. 잠시 후 다시 시도해주세요.',
+    });
+  });
+
+  it('스트림 도중 429 에러는 요청 과다 안내 문구의 error 이벤트로 바꿔 내보낸다', async () => {
+    async function* failing(): AsyncGenerator<string> {
+      yield 'const A';
+      throw new Error('Claude API error: 429');
+    }
+
+    const events = await readEvents(createGenerationStream(failing(), (text) => text));
+
+    expect(events.at(-1)).toEqual({ type: 'error', error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' });
+  });
+
+  it('클라이언트가 스트림을 취소하면 onCancel을 호출한다', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    async function* slow(): AsyncGenerator<string> {
+      yield 'a';
+      await gate;
+      yield 'b';
+    }
+    let cancelled = 0;
+    const stream = createGenerationStream(slow(), (text) => text, () => {
+      cancelled += 1;
+    });
+
+    const reader = stream.getReader();
+    await reader.read();
+    await reader.cancel();
+    release();
+
+    expect(cancelled).toBe(1);
+  });
+
   it('텍스트가 하나도 없으면 error 이벤트를 내보낸다', async () => {
     const events = await readEvents(createGenerationStream(chunksOf(), (text) => text));
 

@@ -6,6 +6,7 @@ import { readSseData } from './sse';
 import { extractAnthropicText, extractGoogleChunk } from './streamText';
 import { createGenerationStream } from './generationStream';
 import { withIdleTimeout } from './idleTimeout';
+import { classifyError } from './errorMessage';
 
 // 외부 AI API 한 번의 호출에 허용하는 최대 시간. 폴백 시 모델마다 따로 적용된다.
 const API_TIMEOUT_MS = 30_000;
@@ -183,8 +184,8 @@ async function openAnthropicStream(prompt: string, apiKey: string): Promise<Resp
   return response;
 }
 
-async function* anthropicChunks(response: Response): AsyncGenerator<string> {
-  for await (const data of readSseData(response.body!)) {
+async function* anthropicChunks(response: Response, signal: AbortSignal): AsyncGenerator<string> {
+  for await (const data of readSseData(response.body!, signal)) {
     yield extractAnthropicText(data);
   }
 }
@@ -212,8 +213,8 @@ async function openGoogleStream(prompt: string, apiKey: string, model: string): 
   return response;
 }
 
-async function* googleChunks(response: Response): AsyncGenerator<string> {
-  for await (const data of readSseData(response.body!)) {
+async function* googleChunks(response: Response, signal: AbortSignal): AsyncGenerator<string> {
+  for await (const data of readSseData(response.body!, signal)) {
     const { text, truncated } = extractGoogleChunk(data);
     if (text) yield text;
     if (truncated) {
@@ -223,15 +224,23 @@ async function* googleChunks(response: Response): AsyncGenerator<string> {
 }
 
 // 모델 폴백은 연결 단계(첫 응답 헤더)까지만 적용된다. 스트림이 시작된 뒤의 실패는 폴백하지 않는다.
-async function streamGoogle(prompt: string, apiKey: string): Promise<AsyncGenerator<string>> {
+async function streamGoogle(
+  prompt: string,
+  apiKey: string,
+  signal: AbortSignal,
+): Promise<AsyncGenerator<string>> {
   const response = await withModelFallback(GOOGLE_MODELS, (model) =>
     openGoogleStream(prompt, apiKey, model),
   );
-  return googleChunks(response);
+  return googleChunks(response, signal);
 }
 
-async function streamAnthropic(prompt: string, apiKey: string): Promise<AsyncGenerator<string>> {
-  return anthropicChunks(await openAnthropicStream(prompt, apiKey));
+async function streamAnthropic(
+  prompt: string,
+  apiKey: string,
+  signal: AbortSignal,
+): Promise<AsyncGenerator<string>> {
+  return anthropicChunks(await openAnthropicStream(prompt, apiKey), signal);
 }
 
 const STREAM_HEADERS = {
@@ -297,15 +306,20 @@ const server = Bun.serve({
         }
 
         if (stream) {
+          // 클라이언트 연결 끊김이나 유휴 타임아웃 때 제공자 연결(본문 reader)을 취소한다.
+          const upstream = new AbortController();
+          const abortUpstream = () => upstream.abort();
+
           const chunks =
             provider === 'google'
-              ? await streamGoogle(prompt, resolvedKey)
-              : await streamAnthropic(prompt, resolvedKey);
+              ? await streamGoogle(prompt, resolvedKey, upstream.signal)
+              : await streamAnthropic(prompt, resolvedKey, upstream.signal);
 
           return new Response(
             createGenerationStream(
-              withIdleTimeout(chunks, API_TIMEOUT_MS),
+              withIdleTimeout(chunks, API_TIMEOUT_MS, abortUpstream),
               (text) => ensureRenderCall(stripCodeFences(text)),
+              abortUpstream,
             ),
             { headers: STREAM_HEADERS },
           );
@@ -320,26 +334,11 @@ const server = Bun.serve({
 
         return Response.json({ code }, { headers: CORS_HEADERS });
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-
-        if (message.includes('503')) {
-          return Response.json(
-            { error: 'API 서버가 일시적으로 과부하 상태입니다. 잠시 후 다시 시도해주세요.' },
-            { status: 503, headers: CORS_HEADERS }
-          );
-        }
-
-        if (message.includes('429')) {
-          return Response.json(
-            { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
-            { status: 429, headers: CORS_HEADERS }
-          );
-        }
-
-        return Response.json(
-          { error: message },
-          { status: 500, headers: CORS_HEADERS }
+        const { status, message } = classifyError(
+          err instanceof Error ? err.message : 'Unknown error',
         );
+
+        return Response.json({ error: message }, { status, headers: CORS_HEADERS });
       }
     }
 
