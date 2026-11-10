@@ -15,6 +15,63 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+describe('App 스트리밍 생성', () => {
+  const encoder = new TextEncoder();
+  const line = (event: unknown) => encoder.encode(`${JSON.stringify(event)}\n`);
+
+  function stubStreamingFetch() {
+    let controller!: ReadableStreamDefaultController<Uint8Array>;
+    const body = new ReadableStream<Uint8Array>({
+      start(c) {
+        controller = c;
+      },
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        url === '/api/config'
+          ? new Response(JSON.stringify({ envKeys: { anthropic: false, google: true } }))
+          : new Response(body),
+      ),
+    );
+    return { send: (event: unknown) => controller.enqueue(line(event)), close: () => controller.close() };
+  }
+
+  async function submitPrompt() {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByPlaceholderText(/고객 목록/);
+    await user.type(screen.getByPlaceholderText(/고객 목록/), '버튼');
+    await user.click(screen.getByRole('button', { name: '컴포넌트 생성' }));
+  }
+
+  it('생성 중에는 "생성된 컴포넌트" 섹션에서 코드 탭으로 실시간 코드를 보여준다', async () => {
+    const stream = stubStreamingFetch();
+    await submitPrompt();
+
+    expect(await screen.findByRole('heading', { name: '생성된 컴포넌트' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: '코드' })).toHaveAttribute('aria-selected', 'true');
+
+    stream.send({ type: 'delta', text: 'const Live = () => null;' });
+
+    expect(await screen.findByText('const Live = () => null;')).toBeInTheDocument();
+  });
+
+  it('생성이 끝나면 미리보기 탭이 선택된 컴포넌트 카드로 바뀐다', async () => {
+    const stream = stubStreamingFetch();
+    await submitPrompt();
+    stream.send({ type: 'delta', text: 'const Live = () => null;' });
+    await screen.findByText('const Live = () => null;');
+
+    stream.send({ type: 'done', code: 'const Live = () => <p>완성</p>;\nrender(<Live />);' });
+    stream.close();
+
+    const previewTab = await screen.findByRole('button', { name: '미리보기' });
+    expect(previewTab).toHaveClass('tab--active');
+    expect(screen.queryByRole('tab', { name: '코드' })).not.toBeInTheDocument();
+  });
+});
+
 describe('App 상태 저장', () => {
   it('저장된 Provider를 복원한다', () => {
     localStorage.setItem('rcg:provider', JSON.stringify('anthropic'));
