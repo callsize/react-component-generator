@@ -70,9 +70,7 @@
   align-items: center;
   padding: calc(var(--bar-h) + 22px) 26px 24px;
   margin-bottom: 28px;
-  background:
-    repeating-linear-gradient(135deg, transparent 0 14px, rgba(255, 201, 60, 0.22) 14px 28px),
-    var(--paper);
+  background: var(--paper);
 }
 
 .brand-mark {
@@ -86,7 +84,6 @@
   color: var(--paper);
   font-size: 1.5rem;
   font-weight: 700;
-  text-shadow: 2px 2px 0 var(--ink);
 }
 
 .header-copy {
@@ -97,7 +94,6 @@
   color: var(--ink);
   font-size: clamp(1.6rem, 3vw, 2.5rem);
   line-height: 1.2;
-  text-shadow: 3px 3px 0 var(--lilac);
 }
 
 .header-copy p {
@@ -299,7 +295,6 @@
 .btn-regenerate {
   background: var(--teal);
   color: #ffffff;
-  text-shadow: 1px 1px 0 var(--ink);
 }
 
 .btn-remove:hover,
@@ -732,7 +727,6 @@ button:focus-visible {
 .btn-copy {
   background: var(--blue);
   color: #ffffff;
-  text-shadow: 1px 1px 0 var(--ink);
 }
 
 .code-block {

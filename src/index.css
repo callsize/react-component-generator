@@ -25,22 +25,6 @@ body {
   min-height: 100vh;
 }
 
-/* CRT 스캔라인 오버레이 (아주 약하게) */
-body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 100;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.025) 0,
-    rgba(0, 0, 0, 0.025) 1px,
-    transparent 1px,
-    transparent 3px
-  );
-}
-
 button,
 input,
 select,
