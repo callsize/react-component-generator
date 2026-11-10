@@ -21,6 +21,14 @@
 - 사용자가 입력한 API 키는 localStorage의 `rcg:apiKeys` 한 곳에만 저장한다 (`src/App.tsx`, `usePersistentState`). 컴포넌트 목록, 히스토리 등 다른 저장 키에 섞지 않고, 로그나 서버 응답에 출력하지 않는다. 저장은 사용자의 명시적 결정이며 보안 위험은 `src/AGENTS.md` 참고.
 - `.env`는 커밋하지 않는다 (`.gitignore`).
 
+### 민감 파일 차단
+
+- 에이전트는 `.env`, `.env.*`, `*credential*`, `*secret*`, `*.pem`, `*.key`, SSH/AWS 설정(`.ssh/`, `.aws/`) 등 민감 파일을 읽거나 수정하지 않는다. `.claude/settings.json`의 `permissions.deny`가 Read/Edit/Write와 Bash/PowerShell 명령을 차단한다.
+- 환경 변수 덤프(`printenv`, `env`, `$env:` 조회, `Get-ChildItem env:`)도 금지한다. 키 보유 여부는 `/api/config` 응답(boolean)으로만 확인한다.
+- 우회 금지: Bash/PowerShell로 `cat`, `type`, `Get-Content` 등을 써서 차단된 파일을 읽거나, 다른 경로로 복사해서 접근하지 않는다.
+- 민감 파일 내용이 필요한 작업은 멈추고 사용자에게 값을 직접 설정해 달라고 요청한다.
+- `permissions.deny` 항목을 임의로 제거하거나 완화하지 않는다. 변경은 사용자의 명시적 요청이 있을 때만 한다.
+
 ### 하드 제약 (생성 코드 실행 계약)
 
 - 생성된 코드는 `react-live`의 `noInline` 모드로 실행된다 (`src/components/LivePreview.tsx:14`). 코드 끝에 `render(<Component />)` 호출이 없으면 미리보기가 그려지지 않는다.
