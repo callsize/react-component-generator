@@ -1,5 +1,6 @@
 import { stripCodeFences, ensureRenderCall } from './generator';
 import { withModelFallback } from './fallback';
+import { validatePromptLength } from './validate';
 
 // 우선순위 순서. 앞 모델이 실패하면 다음 모델로 폴백한다.
 const GOOGLE_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash'];
@@ -176,6 +177,14 @@ const server = Bun.serve({
         if (!prompt) {
           return Response.json(
             { error: 'Prompt is required' },
+            { status: 400, headers: CORS_HEADERS }
+          );
+        }
+
+        const validation = validatePromptLength(prompt);
+        if (!validation.ok) {
+          return Response.json(
+            { error: validation.error },
             { status: 400, headers: CORS_HEADERS }
           );
         }
