@@ -1,5 +1,10 @@
 import { stripCodeFences, ensureRenderCall } from './generator';
 import { withModelFallback } from './fallback';
+import { validatePromptLength } from './validate';
+import { fetchWithTimeout } from './fetchWithTimeout';
+
+// 외부 AI API 한 번의 호출에 허용하는 최대 시간. 폴백 시 모델마다 따로 적용된다.
+const API_TIMEOUT_MS = 30_000;
 
 // 우선순위 순서. 앞 모델이 실패하면 다음 모델로 폴백한다.
 const GOOGLE_MODELS = ['gemini-3.1-flash-lite', 'gemini-3.5-flash'];
@@ -66,20 +71,24 @@ function resolveApiKey(provider: Provider, clientKey?: string): string | null {
 }
 
 async function callAnthropic(prompt: string, apiKey: string): Promise<string> {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
+  const response = await fetchWithTimeout(
+    'https://api.anthropic.com/v1/messages',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: 'user', content: prompt }],
+      }),
     },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
+    API_TIMEOUT_MS,
+  );
 
   if (!response.ok) {
     throw new Error(`Claude API error: ${response.status}`);
@@ -98,15 +107,19 @@ async function callAnthropic(prompt: string, apiKey: string): Promise<string> {
 async function callGoogleModel(prompt: string, apiKey: string, model: string): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: 8192 },
-    }),
-  });
+  const response = await fetchWithTimeout(
+    url,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 8192 },
+      }),
+    },
+    API_TIMEOUT_MS,
+  );
 
   if (!response.ok) {
     throw new Error(`Gemini API error: ${response.status}`);
@@ -176,6 +189,14 @@ const server = Bun.serve({
         if (!prompt) {
           return Response.json(
             { error: 'Prompt is required' },
+            { status: 400, headers: CORS_HEADERS }
+          );
+        }
+
+        const validation = validatePromptLength(prompt);
+        if (!validation.ok) {
+          return Response.json(
+            { error: validation.error },
             { status: 400, headers: CORS_HEADERS }
           );
         }

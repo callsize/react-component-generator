@@ -1,8 +1,16 @@
 import { useState, useCallback } from 'react';
 import type { GeneratedComponent, Provider } from '../types';
+import { usePersistentState } from './usePersistentState';
+import { addToHistory, parseComponents, parseHistory } from '../utils/storage';
+
+export const STORAGE_KEYS = {
+  components: 'rcg:components',
+  history: 'rcg:promptHistory',
+} as const;
 
 interface UseComponentGeneratorReturn {
   components: GeneratedComponent[];
+  history: string[];
   isLoading: boolean;
   error: string | null;
   generate: (prompt: string, apiKey: string | undefined, provider: Provider) => Promise<void>;
@@ -11,13 +19,23 @@ interface UseComponentGeneratorReturn {
 }
 
 export function useComponentGenerator(): UseComponentGeneratorReturn {
-  const [components, setComponents] = useState<GeneratedComponent[]>([]);
+  const [components, setComponents] = usePersistentState<GeneratedComponent[]>(
+    STORAGE_KEYS.components,
+    [],
+    parseComponents,
+  );
+  const [history, setHistory] = usePersistentState<string[]>(
+    STORAGE_KEYS.history,
+    [],
+    parseHistory,
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const generate = useCallback(async (prompt: string, apiKey: string | undefined, provider: Provider) => {
     setIsLoading(true);
     setError(null);
+    setHistory((prev) => addToHistory(prev, prompt));
 
     try {
       const res = await fetch('/api/generate', {
@@ -46,15 +64,15 @@ export function useComponentGenerator(): UseComponentGeneratorReturn {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [setComponents, setHistory]);
 
   const removeComponent = useCallback((id: string) => {
     setComponents((prev) => prev.filter((c) => c.id !== id));
-  }, []);
+  }, [setComponents]);
 
   const clearAll = useCallback(() => {
     setComponents([]);
-  }, []);
+  }, [setComponents]);
 
-  return { components, isLoading, error, generate, removeComponent, clearAll };
+  return { components, history, isLoading, error, generate, removeComponent, clearAll };
 }
