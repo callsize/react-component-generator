@@ -34,8 +34,9 @@ Vite로 번들되는 브라우저 프런트엔드. 서버와는 `/api/generate`,
 ### 보안 경계
 
 - `LiveProvider`에 `scope`를 넘기지 않는다 (`src/components/LivePreview.tsx:14`). AI가 생성한 코드가 페이지 권한으로 실행되므로, `apiKey` 같은 값이나 `fetch` 래퍼를 scope로 주입하면 생성 코드가 접근할 수 있다.
-- 사용자가 입력한 `apiKey`는 `App`의 state에만 둔다. 컴포넌트 목록(`GeneratedComponent`)에 키를 저장하지 않고 저장소에도 쓰지 않는다 (`src/App.tsx:14`, `src/types/index.ts:3-8`).
-- 제공자를 바꾸면 입력된 키를 비운다. 다른 제공자 엔드포인트로 키가 흘러가는 것을 막는다 (`src/App.tsx:41-44`). 제공자 선택 UI를 고칠 때 이 초기화를 유지한다.
+- API 키는 `Record<Provider, string>` 형태로 `rcg:apiKeys`에만 저장한다. 컴포넌트 목록(`GeneratedComponent`)이나 히스토리에 키를 넣지 않는다 (`src/App.tsx`, `src/types/index.ts:3-8`).
+- 키는 Provider별로 분리 저장하고 `apiKey = apiKeys[provider]`로 읽는다. 다른 제공자 엔드포인트로 키가 흘러가지 않게 하는 방어선이므로, 키를 하나의 값으로 합치지 않는다 (`src/App.test.tsx`의 "해당 Provider의 키만 보이고" 테스트).
+- localStorage에 저장된 API 키는 같은 페이지에서 실행되는 모든 스크립트가 읽을 수 있다. `LivePreview`가 AI 생성 코드를 페이지 권한으로 실행하므로, 생성 코드가 `localStorage.getItem('rcg:apiKeys')`로 키를 읽어 외부로 보낼 수 있다. 이 위험은 수용된 상태다. 샌드박스 iframe 격리 등 완화책을 도입할 때만 이 항목을 갱신한다.
 - 서버로 보내는 본문은 키가 있을 때만 `apiKey`를 포함한다 (`src/hooks/useComponentGenerator.ts:26`, `...(apiKey && { apiKey })`).
 
 ### 이중 방어
@@ -49,7 +50,8 @@ Vite로 번들되는 브라우저 프런트엔드. 서버와는 `/api/generate`,
 
 ### 테스트 경계
 
-- 테스트가 있는 곳은 `PromptInput`뿐이다. `App`, `ComponentCard`, `CodeView`, `LivePreview`, `useComponentGenerator`에는 없다. 키 검증, 제공자 전환 시 키 초기화, 에러 표시처럼 `App`과 훅에 있는 분기를 수정하면 해당 동작의 테스트를 함께 추가한다.
+- 테스트가 있는 곳: `PromptInput`, `App`(저장/복원 동작만), `useComponentGenerator`(저장/복원 동작만), `utils/storage.ts`. `ComponentCard`, `CodeView`, `LivePreview`에는 없다. 키 검증(`alert`), 에러 표시처럼 아직 테스트가 없는 `App`과 훅의 분기를 수정하면 해당 동작의 테스트를 함께 추가한다.
+- localStorage 저장 키는 `rcg:` 접두어를 쓴다 (`rcg:apiKeys`, `rcg:provider`, `rcg:promptHistory`, `rcg:components`). 저장 형식을 바꾸면 `utils/storage.ts`의 `parseXxx`가 이전 형식을 걸러 fallback으로 떨어지는지 테스트한다. 깨진 저장값 때문에 앱이 죽으면 안 된다.
 - 네트워크 호출은 테스트에서 실제로 보내지 않고 `fetch`를 `vi.fn`/`vi.stubGlobal`로 대체한다.
 
 ### 상태 갱신 패턴

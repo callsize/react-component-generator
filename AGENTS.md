@@ -18,7 +18,7 @@
 - API 키를 코드에 하드코딩하지 않는다. 서버는 `process.env.ANTHROPIC_API_KEY`, `process.env.GOOGLE_API_KEY`에서만 읽는다 (`server/index.ts:59-62`).
 - `/api/config` 응답에는 키 보유 여부(boolean)만 담는다. 키 값을 응답에 포함하지 않는다 (`server/index.ts:147-157`).
 - 프런트엔드에서 AI 제공자 API를 직접 호출하지 않는다. 항상 `/api/generate` 프록시를 거친다 (`src/hooks/useComponentGenerator.ts:23`).
-- 사용자가 입력한 API 키는 React state로만 보관한다. localStorage/sessionStorage에 저장하지 않는다 (`src/App.tsx:14`, 저장소 접근 코드 없음).
+- 사용자가 입력한 API 키는 localStorage의 `rcg:apiKeys` 한 곳에만 저장한다 (`src/App.tsx`, `usePersistentState`). 컴포넌트 목록, 히스토리 등 다른 저장 키에 섞지 않고, 로그나 서버 응답에 출력하지 않는다. 저장은 사용자의 명시적 결정이며 보안 위험은 `src/AGENTS.md` 참고.
 - `.env`는 커밋하지 않는다 (`.gitignore`).
 
 ### 하드 제약 (생성 코드 실행 계약)
